@@ -1,0 +1,540 @@
+#include <iostream>
+#include <stdlib.h>
+
+using namespace std;
+
+struct node
+{
+	int *keys;
+	node **child_pointer;
+	int number_of_keys;
+	bool leaf;
+	node *parent;
+}*root, *currnode;
+
+const int maxk = 5;	// This is for setting the max number of keys to be 5
+const int maxp = maxk + 1; // This is for the max number of pointer a node may have
+const int mink = 2;
+
+// Function to Create a new node and return it
+node* allocated()
+{
+	// Alocating Memory
+	node *temp = new node;
+	// Setting memory for keys
+	temp->keys = new int[maxk];
+	// Setting Memory for Children
+	temp->child_pointer = new node *[maxp];
+	// Setting the Node to be a Leaf
+	temp->leaf = true;
+	// Setting the parent to be NULL
+	temp->parent = NULL;
+	// Setting the number of Keys to Zero
+	temp->number_of_keys = 0;
+	// Initialising All children to be null
+	for (int i = 0; i < maxp; ++i)
+	{
+		temp->child_pointer[i] = NULL;
+	}
+	return temp;
+}
+
+// Function To display the tree
+void display_tree(node *ptr, int level)
+{
+	int i, j;
+	if(ptr == NULL)
+	{
+		cout<< "NULL" <<endl;
+		return;
+	}
+	if(ptr->leaf == false)
+		display_tree(ptr -> child_pointer[ptr -> number_of_keys], level+1);
+	for(i = ptr -> number_of_keys - 1; i >= 0; i--)
+	{
+		for (j = 0; j < level; j++)
+		{
+			cout<<"\t";
+		}
+		cout << ptr->keys[i] << endl;
+		if(ptr -> leaf == false)
+		{
+			display_tree(ptr -> child_pointer[i], level+1);
+		}
+	}
+}
+
+
+// To Split the node in case of number of keys = 5
+void split(node *x, int i)
+{
+	int mid, j;
+
+	node *temp, *y;
+
+	y = allocated();
+	
+	/*
+	* This is where the root splits for the first time - NO CHILDREN
+	*/
+	if(i == -1)
+	{
+		temp = allocated();
+		mid = x->keys[2];
+		y->leaf = true;
+		temp->leaf = false;
+		x->leaf = true;
+
+		for( j = 3; j < 5; ++j)
+		{
+			y->keys[j - 3] = x->keys[j];
+		}
+		temp -> number_of_keys++;
+		x -> number_of_keys = 2;
+		y ->  number_of_keys = 2;
+		temp -> keys[0] = mid;
+		temp -> child_pointer[0] = x;
+		x->parent = temp;
+		temp -> child_pointer[1] = y;
+		y->parent = temp;
+		root = temp;
+	}
+
+	// Not root and its parent is not a root
+	else if( i != -1 && x != root && x->parent != root)
+	{
+		node *_parent = new node;
+		_parent = x->parent;
+		mid = x->keys[2];
+				
+		for( j = 3; j < 5; ++j)
+		{
+			y->keys[j - 3] = x->keys[j];
+		}
+
+		x->number_of_keys = 2;
+		y->number_of_keys = 2;
+		int number = _parent->number_of_keys;
+		while( number >= 1 && mid < x->keys[number-1] )
+		{
+			x->keys[number] = x->keys[number-1];
+			number--;
+		}
+		_parent->keys[number] = mid;
+		_parent->number_of_keys++;
+		_parent->child_pointer[i+1] = y;
+		y->parent = _parent;
+
+		if (_parent->parent != NULL && _parent->number_of_keys == 5)
+		{
+			node *extra = new node;
+			extra = _parent->parent;
+			int c_num = 0;
+			while(extra->child_pointer[c_num] != _parent)
+				c_num++;
+			split(_parent,c_num);
+		}
+
+	}
+
+	// parent is the root
+	else if(i != -1 && x->parent == root)
+	{
+		mid = x->keys[2];
+		y->leaf = true;
+		node *_parent = root;
+		for( j = 3; j < 5; ++j)
+		{
+			y->keys[j - 3] = x->keys[j];
+		}
+		for( j = 3; j <= 5; ++j)
+		{
+			y->child_pointer[j - 3] = x->child_pointer[j];
+			delete x->child_pointer[j];
+			x->child_pointer[j]=NULL;
+		}
+		int number = _parent->number_of_keys;
+		while(number >= 1 && mid < _parent->keys[number-1] )
+		{
+			_parent->keys[number] = _parent->keys[number-1];
+			number--;
+		}
+		_parent->keys[number] = mid;
+		_parent->number_of_keys++;
+		x->number_of_keys = 2;
+		y->number_of_keys = 2;
+		for(int j = _parent->number_of_keys; j > number + 1; j--)
+			_parent->child_pointer[j] = _parent->child_pointer[j - 1];
+		_parent->child_pointer[number + 1] = y;
+		y->parent = _parent;
+
+		if(_parent->number_of_keys == 5)
+		{
+			split(_parent, 0);
+		}
+	}
+
+	// Its is the root and it has children
+	else if(i != -1 && x==root)
+	{
+		temp = allocated();
+		mid = x->keys[2];
+		for( j = 3; j < 5; ++j)
+		{
+			y->keys[j - 3] = x->keys[j];
+		}
+		for( j = 3; j <= 5; ++j)
+		{
+			node *shift = x->child_pointer[j];
+			y->child_pointer[j - 3] = shift;
+			x->child_pointer[j]=NULL;
+		}
+		temp->leaf = false;
+		temp->number_of_keys = 1;
+		temp->keys[0] = mid;
+		temp->child_pointer[0] = x;
+		x->parent = temp;
+		temp->child_pointer[1] = y;
+		y->parent = temp;
+		x->leaf = false;
+		y->leaf = false;
+		x -> number_of_keys = 2;
+		y ->  number_of_keys = 2;
+		root = temp;
+	}
+
+}
+
+// Insert function
+/*
+* Insert is perfectly awesome
+*/
+void insert(node* x, int data)
+{
+	if (root == NULL)
+	{
+		root = allocated();
+		root->keys[0] = data;
+		root->parent = NULL;
+		root->number_of_keys++;
+	}
+
+	else
+	{
+		int number = x->number_of_keys;
+		/*
+		*	If the node we are inserting in is a Leaf and has less than 4 keys
+		*/
+		if(x->leaf == true && x->number_of_keys != maxk - 1)
+		{
+			while( number >= 1 && data < x->keys[number-1] )
+			{
+				x->keys[number] = x->keys[number-1];
+				number--;
+			}
+			
+			x->number_of_keys++;
+			x->keys[number] = data;
+		}
+		/*
+		*  Node is a leaf and has exactly 4 keys
+		*/
+		else if(x->leaf == true && x->number_of_keys == maxk - 1)
+		{
+			while( number >= 1 && data < x->keys[number-1] )
+			{
+				x->keys[number] = x->keys[number-1];
+				number--;
+			}
+			x->keys[number] = data;
+			x->number_of_keys++;
+			
+
+			if(x->parent == NULL)
+				split(x, -1);
+
+			else
+			{
+				node *t = new node;
+				t = x->parent;
+				int c_num = 0;
+				while(t->child_pointer[c_num] != x)
+					c_num++;
+				split(x,c_num);
+			}
+		}
+	
+		/*
+		* check only if first two are false, 
+		*/
+		else if (x->leaf == false)
+		{
+			while(number >= 1 && data < x->keys[number-1])
+				number--;
+
+			 x = x->child_pointer[number];
+
+			insert(x, data);
+	
+		}
+	}
+}
+
+// To find the index of the given key in a node
+int findindex(node *x, int check)
+{
+	int i=0;
+	while(i < x->number_of_keys && check > x->keys[i])
+	{
+		i++;
+	}
+	return i;
+}
+
+// Searching for an element
+node* search(int element)
+{
+	if(root == NULL)
+	{
+		return NULL;
+	}
+	node *temp = new node;
+	temp = root;
+	int index = findindex(temp, element);
+	while(temp -> keys[index] != element && !temp->leaf)
+	{
+		temp = temp -> child_pointer[index];
+		index = findindex(temp, element);
+	}
+	if(temp -> keys[index] == element && index < temp->number_of_keys)
+		return temp;
+	return NULL;
+}
+
+
+// Merging case when the sibling does not have more than 2 node to give for borrowing
+void merge(node *left, node *right, node* _parent)
+{
+	bool change_root = false;
+	if (_parent == root && root->number_of_keys == 1)
+	{
+		change_root = true;
+	}
+
+	int c_num = 0;
+	while(_parent->child_pointer[c_num] != right)
+		c_num++;
+
+	left->keys[left->number_of_keys] = _parent->keys[c_num - 1];
+	left->number_of_keys++;
+	for (int i = 0; i < right->number_of_keys; ++i)
+	{
+		left->child_pointer[left->number_of_keys] = right->child_pointer[i];
+		left->keys[left->number_of_keys] = right->keys[i];
+		left->child_pointer[left->number_of_keys + 1] = right->child_pointer[i+1];
+		left->number_of_keys++; 
+	}
+
+	_parent->child_pointer[c_num] = NULL;
+	for (int i = c_num - 1; i <= _parent->number_of_keys - c_num; ++i)
+	{
+		_parent->keys[i] = _parent->keys[i+1];
+		_parent->child_pointer[i+1] = _parent->child_pointer[i+2];
+	}
+	_parent->child_pointer[_parent->number_of_keys] = NULL;
+	_parent->number_of_keys--;
+
+	if (change_root)
+	{
+		root = root->child_pointer[0];
+		root->parent = NULL;
+	}
+
+}
+
+// Case of borrowing from the left
+void left_borrow(node *taker, node *giver, node *_parent, int c_num)
+{
+	int take = giver->keys[giver->number_of_keys - 1];
+	int take1 = _parent->keys[c_num - 1];
+	taker->keys[taker->number_of_keys] = taker->keys[taker->number_of_keys - 1];
+	taker->keys[0] = take1;
+	_parent->keys[c_num - 1] = take;
+	giver->number_of_keys--;
+	taker->number_of_keys++;
+}
+
+// Case of borrowing from the right
+void right_borrow(node *taker, node *giver, node *_parent, int c_num)
+{
+	int take = giver->keys[0];
+	int take1 = _parent->keys[c_num];
+	taker->keys[taker->number_of_keys] = take1;
+	taker->number_of_keys++;
+	_parent->keys[c_num] = take;
+	for (int i = 0; i < 2; ++i)
+	{
+		giver->keys[i] = giver->keys[i+1];
+	}
+	giver->number_of_keys--;
+}
+
+// Once deletion is done, the after effects of the remaing leaf
+void afterremoval(node *x)
+{
+	bool has_left = true;
+	bool has_right = true;
+	node *_parent = x->parent;
+	node *curr_root;
+	int c_num = 0;
+	while(_parent->child_pointer[c_num] != x)
+	{
+		c_num++;
+	}
+	if(x->number_of_keys < 2)
+	{
+		if (c_num == 0)
+			has_left = false;
+		if(c_num == _parent->number_of_keys - 1)
+			has_right = false;
+
+		if (has_left && _parent->child_pointer[c_num - 1]->number_of_keys > 2)
+		{
+			left_borrow(x, _parent->child_pointer[c_num-1], _parent, c_num);
+		}
+		
+		else if(has_right && _parent->child_pointer[c_num+1]->number_of_keys > 2)
+		{
+			right_borrow(x, _parent->child_pointer[c_num+1], _parent, c_num);
+		}
+
+		else if (has_left)
+		{
+			curr_root = root;
+			merge(_parent->child_pointer[c_num-1], x, _parent);
+			if (curr_root == root && _parent != root)
+			{
+				afterremoval(_parent);
+			}
+		}
+
+		else if(has_right)
+		{
+			curr_root = root;
+			merge(x, _parent->child_pointer[c_num+1], _parent);
+			if (curr_root == root && _parent != root)
+			{
+				afterremoval(_parent);
+			}
+		}
+
+	}
+}
+
+// This just deletes the element - Its after-effects is taken care of in After-Removal
+void del(int to_del)
+{
+	node *temp = search(to_del);
+	if (temp == NULL)
+	{
+		cout<< "Element is not Present\n";
+		return;
+	}
+	else
+	{
+		int index = findindex(temp, to_del);
+		node *leaff = new node;
+
+		if(temp->leaf == false)
+		{
+			leaff = temp->child_pointer[index+1];
+			while(leaff->leaf == false)
+			{
+				leaff = leaff->child_pointer[0];
+			}
+			temp->keys[index] = leaff->keys[0];
+			for (int i = 0; i < leaff->number_of_keys - 1; ++i)
+			{
+				leaff->keys[i] = leaff->keys[i+1];
+			}
+			leaff->number_of_keys--;
+		}
+
+		else if (temp == root)
+		{
+			for (int i = 0; i < temp->number_of_keys - index - 1; ++i)
+			{
+				temp->keys[index + i] = temp->keys[index + i + 1];
+			}
+			temp->number_of_keys--;
+			if (temp->number_of_keys == 0)
+				root = NULL;
+			return;
+		}
+
+		else
+		{
+			for (int i = 0; i < temp->number_of_keys - index - 1; ++i)
+			{
+				temp->keys[index + i] = temp->keys[index + i + 1];
+			}
+			temp->number_of_keys--;
+			leaff = temp;
+		}
+		cout << leaff -> keys[0] << endl;
+		afterremoval(leaff);
+	}
+}
+
+int main()
+{
+	int ch;
+	cout<<"Welcome to the B-Tree Program"<<endl;
+	ch = 1;
+	while(ch != 0)
+	{
+		node *z;
+		cout<<"======================"<<endl;
+		cout<<"What would you like to do"<<endl;
+		cout<<" 1. Insert into the BST\n 2. Display the B-Tree\n 3. Find an Element in the B-Tree\n 4. Delete an Element in the B-Tree\n 5. Exit the Program"<<endl;
+		cout<<"Enter the option "<<endl;
+		cin >> ch;
+		switch(ch)
+		{
+			case 1:
+				int enter;
+				cout<< "Enter the number for insertion"<<endl;
+				cin >> enter;
+				insert(root, enter);
+				break;
+
+			case 2:
+				cout<< "The Trees Actually looks like this::"<<endl;
+				display_tree(root, 0);
+				break;
+
+			case 3:
+				int find;
+				cout << "Enter the Element to Search"<<endl;
+				cin >> find;
+				z = search(find);
+				if(z == NULL)
+					cout<<"\nElement Absent\n";
+				else
+					cout<<"\nElement Present\n";
+				cout<<endl;
+				break;
+
+			case 4:
+				cout<< "Enter the Element to Delete"<<endl;
+				int todel;
+				cin >> todel;
+				del(todel);
+				break;
+
+			case 5:
+				exit(0);
+				break;
+		}
+	}
+}
